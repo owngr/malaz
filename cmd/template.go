@@ -32,7 +32,7 @@ to quickly create a Cobra application.`,
 	},
 }
 
-func loadValues() map[string]interface{} {
+func loadValues() map[string]map[string]interface{} {
 	data, err := ioutil.ReadFile("values.yaml")
 	if err != nil {
 		panic(err)
@@ -47,7 +47,9 @@ func loadValues() map[string]interface{} {
 		panic(err)
 	}
 	fmt.Println(config)
-	return config
+	var values = make(map[string]map[string]interface{})
+	values["Values"] = config
+	return values
 }
 
 func loadTemplate() *template.Template {
