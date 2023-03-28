@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"text/template"
 
@@ -27,9 +28,35 @@ to quickly create a Cobra application.`,
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		values := loadValues()
-		template := loadTemplate()
-		template.Execute(os.Stdout, values)
+		goFiles, _, dirs := loadTemplate()
+		fmt.Println("test")
+		destinationDir := recreateDirs(dirs)
+		renderTemplates(goFiles, destinationDir, values)
+		fmt.Println(destinationDir)
 	},
+}
+
+func renderTemplates(templates []string, destinationDir string, values map[string]map[string]interface{}) {
+	for _, goFile := range templates {
+		template, err := template.ParseFiles(goFile)
+		if err != nil {
+			panic(err)
+		}
+		file, err := os.Create(filepath.Join(destinationDir, goFile))
+		template.Execute(file, values)
+	}
+}
+
+func recreateDirs(dirs []string) string {
+	destinationDir, err := os.MkdirTemp("", "malaz")
+	if err != nil {
+		panic(err)
+	}
+	for _, dir := range dirs {
+		os.MkdirAll(filepath.Join(destinationDir, dir), 0755)
+	}
+
+	return destinationDir
 }
 
 func loadValues() map[string]map[string]interface{} {
@@ -52,13 +79,32 @@ func loadValues() map[string]map[string]interface{} {
 	return values
 }
 
-func loadTemplate() *template.Template {
-	t, err := template.ParseFiles("templates/hello.go.tmpl")
+func loadTemplate() ([]string, []string, []string) {
+	root := "templates"
+	var goFiles []string
+	var normalFiles []string
+	var dirs []string
 
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Println(err)
+			return nil
+		}
+		if !info.IsDir() {
+			if filepath.Ext(path) == ".tmpl" {
+				goFiles = append(goFiles, path)
+			} else {
+				normalFiles = append(normalFiles, path)
+			}
+		} else {
+			dirs = append(dirs, path)
+		}
+		return nil
+	})
 	if err != nil {
 		panic(err)
 	}
-	return t
+	return goFiles, normalFiles, dirs
 }
 
 func init() {
